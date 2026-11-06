@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
-import { Headphones, Compass, BookOpen, Sparkles, User as UserIcon, LogOut, CheckCircle2, Shield } from 'lucide-react';
+import { Headphones, Compass, BookOpen, LogOut } from 'lucide-react';
 import { useAuth } from '../lib/auth/AuthContext.tsx';
 
 interface NavbarProps {
-  activeTab: 'studio' | 'library' | 'architecture';
-  setActiveTab: (tab: 'studio' | 'library' | 'architecture') => void;
+  activeTab: 'studio' | 'library';
+  setActiveTab: (tab: 'studio' | 'library') => void;
   onOpenAuth: () => void;
 }
 
 export function Navbar({ activeTab, setActiveTab, onOpenAuth }: NavbarProps) {
-  const { user, logout, loginDemo } = useAuth();
+  const { user, logout } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   return (
@@ -30,7 +30,7 @@ export function Navbar({ activeTab, setActiveTab, onOpenAuth }: NavbarProps) {
                 EchoGuide
               </span>
               <span className="text-[10px] tracking-widest uppercase font-mono block text-amber-400/90 font-medium">
-                Multi-Agent Audio
+                Audio Travel Guide
               </span>
             </div>
           </button>
@@ -46,7 +46,7 @@ export function Navbar({ activeTab, setActiveTab, onOpenAuth }: NavbarProps) {
               }`}
             >
               <Compass className="w-4 h-4 text-amber-400" />
-              <span>Tour Studio</span>
+              <span>Create Tour</span>
             </button>
 
             <button
@@ -58,29 +58,17 @@ export function Navbar({ activeTab, setActiveTab, onOpenAuth }: NavbarProps) {
               }`}
             >
               <BookOpen className="w-4 h-4 text-amber-400" />
-              <span>Tour Library</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('architecture')}
-              className={`px-3.5 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
-                activeTab === 'architecture'
-                  ? 'bg-slate-800 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
-              }`}
-            >
-              <Shield className="w-4 h-4 text-amber-400" />
-              <span>Architecture & README</span>
+              <span>Explore Places</span>
             </button>
           </nav>
         </div>
 
         {/* Right Actions & User Profile */}
         <div className="flex items-center gap-3">
-          {/* Engine indicator */}
-          <div className="hidden lg:flex items-center gap-2 px-2.5 py-1 rounded bg-slate-900/80 border border-slate-800 text-xs text-slate-400 font-mono">
+          {/* Friendly audio tour guide badge */}
+          <div className="hidden lg:flex items-center gap-2 px-2.5 py-1 rounded bg-slate-900/80 border border-slate-800 text-xs text-slate-300">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span>Gemini 2.5 Multi-Agent</span>
+            <span>Self-Guided Walking Tours</span>
           </div>
 
           {user ? (
@@ -139,14 +127,6 @@ export function Navbar({ activeTab, setActiveTab, onOpenAuth }: NavbarProps) {
           ) : (
             <div className="flex items-center gap-2">
               <button
-                onClick={() => loginDemo('explorer')}
-                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-amber-300 hover:text-amber-200 bg-amber-950/40 border border-amber-800/60 hover:bg-amber-900/40 transition-colors"
-                title="Sign in with sample account"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>1-Click Demo</span>
-              </button>
-              <button
                 onClick={onOpenAuth}
                 className="px-3.5 py-1.5 rounded-md text-sm font-semibold bg-amber-500 hover:bg-amber-400 text-slate-950 transition-colors shadow-sm"
               >
@@ -165,7 +145,7 @@ export function Navbar({ activeTab, setActiveTab, onOpenAuth }: NavbarProps) {
             activeTab === 'studio' ? 'bg-slate-800 text-white' : 'text-slate-400'
           }`}
         >
-          Studio
+          Create Tour
         </button>
         <button
           onClick={() => setActiveTab('library')}
@@ -173,15 +153,7 @@ export function Navbar({ activeTab, setActiveTab, onOpenAuth }: NavbarProps) {
             activeTab === 'library' ? 'bg-slate-800 text-white' : 'text-slate-400'
           }`}
         >
-          Library
-        </button>
-        <button
-          onClick={() => setActiveTab('architecture')}
-          className={`px-3 py-1 text-xs rounded font-medium ${
-            activeTab === 'architecture' ? 'bg-slate-800 text-white' : 'text-slate-400'
-          }`}
-        >
-          Architecture & README
+          Explore Places
         </button>
       </div>
     </header>

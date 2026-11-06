@@ -56,14 +56,14 @@ export function TourLibrary({ onSelectTour, onOpenAuth }: TourLibraryProps) {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
         <div>
-          <span className="text-xs font-mono uppercase tracking-widest text-amber-400 font-semibold block mb-1">
-            Audio Archive
+          <span className="text-xs uppercase tracking-widest text-amber-400 font-semibold block mb-1">
+            Historic Walking Tours
           </span>
           <h1 className="text-3xl font-serif font-bold text-white tracking-tight">
-            Explore Audio Tour Library
+            Explore Famous Sights & Historic Places
           </h1>
           <p className="text-sm text-slate-300 mt-1 max-w-xl">
-            Browse expertly curated historical and cultural walks or re-listen to your custom generated itineraries.
+            Browse immersive walking tours of celebrated landmarks, ancient ruins, cathedral quarters, and historic neighborhoods worldwide.
           </p>
         </div>
 

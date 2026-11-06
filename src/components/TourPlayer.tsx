@@ -19,8 +19,9 @@ import {
   Compass
 } from 'lucide-react';
 import { Tour, TourSection, Waypoint } from '../lib/types.ts';
-import { audioPlayer, generateTourWavBlob } from '../lib/audio/audioEngine.ts';
+import { audioPlayer, generateTourWavBlob, CURATED_VOICES, VoicePersona } from '../lib/audio/audioEngine.ts';
 import { useAuth } from '../lib/auth/AuthContext.tsx';
+import { TourRouteMap } from './TourRouteMap.tsx';
 
 interface TourPlayerProps {
   tour: Tour;
@@ -28,11 +29,22 @@ interface TourPlayerProps {
   onOpenAuth: () => void;
 }
 
+function getGuideName(agentName: string): string {
+  const lower = agentName.toLowerCase();
+  if (lower.includes('orchestrator')) return 'Lead Audio Guide';
+  if (lower.includes('hist')) return 'History Specialist';
+  if (lower.includes('arch')) return 'Architecture Specialist';
+  if (lower.includes('cult')) return 'Culture & Arts Specialist';
+  if (lower.includes('culin')) return 'Local Food Specialist';
+  return 'Tour Guide';
+}
+
 export function TourPlayer({ tour, onBackToStudio, onOpenAuth }: TourPlayerProps) {
   const { user, isTourSaved, toggleSaveTour } = useAuth();
   
   const [activeSectionIndex, setActiveSectionIndex] = useState(0);
   const [activeParagraphIndex, setActiveParagraphIndex] = useState(0);
+  const [activeVoiceId, setActiveVoiceId] = useState(audioPlayer.activeVoiceId);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1.0);
@@ -47,6 +59,7 @@ export function TourPlayer({ tour, onBackToStudio, onOpenAuth }: TourPlayerProps
     audioPlayer.subscribe((state) => {
       setIsPlaying(state.isPlaying);
       setIsPaused(state.isPaused);
+      setActiveVoiceId(state.activeVoiceId);
       if (state.currentSectionIndex >= 0 && state.currentSectionIndex < tour.sections.length) {
         setActiveSectionIndex(state.currentSectionIndex);
         setActiveParagraphIndex(state.currentParagraphIndex);
@@ -65,33 +78,44 @@ export function TourPlayer({ tour, onBackToStudio, onOpenAuth }: TourPlayerProps
     } else if (isPaused) {
       audioPlayer.resume();
     } else {
-      playCurrentSection(activeSectionIndex);
+      playCurrentSection(activeSectionIndex, activeParagraphIndex);
     }
   };
 
-  const playCurrentSection = (sectionIndex: number) => {
+  const playCurrentSection = (sectionIndex: number, startParagraphIndex: number = 0) => {
     const sec = tour.sections[sectionIndex];
     if (!sec) return;
 
+    const paragraphs = (sec.paragraphs && sec.paragraphs.length > 0) 
+      ? sec.paragraphs 
+      : [sec.content];
+
     audioPlayer.playSection(
-      sec.content, 
+      paragraphs, 
       sectionIndex, 
-      0, 
-      tour.voiceStyle,
+      startParagraphIndex,
       () => {
         // When section finishes, advance to next section if available
         if (sectionIndex + 1 < tour.sections.length) {
-          playCurrentSection(sectionIndex + 1);
+          playCurrentSection(sectionIndex + 1, 0);
         }
       }
     );
+  };
+
+  const handleVoiceChange = (voiceId: string) => {
+    setActiveVoiceId(voiceId);
+    audioPlayer.setVoicePersona(voiceId);
+    if (isPlaying) {
+      playCurrentSection(activeSectionIndex, activeParagraphIndex);
+    }
   };
 
   const handleSelectSection = (index: number) => {
     setActiveSectionIndex(index);
     setActiveParagraphIndex(0);
     if (isPlaying) {
-      playCurrentSection(index);
+      playCurrentSection(index, 0);
     }
   };
 
@@ -234,7 +258,7 @@ ${s.content}
                 {activeSection.title}
               </h2>
               <p className="text-xs text-slate-400">
-                Narrated by <span className="text-slate-300">{activeSection.agentName}</span> ({tour.voiceStyle})
+                Narrated by <span className="text-slate-300">{getGuideName(activeSection.agentName)}</span> · {tour.voiceStyle}
               </p>
             </div>
           </div>
@@ -279,6 +303,49 @@ ${s.content}
 
         </div>
 
+        {/* Voice Clarity & Persona Selector Bar */}
+        <div className="mt-4 pt-4 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="flex items-center gap-1.5 text-amber-400 font-semibold">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Narrator Voice:</span>
+            </span>
+
+            <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
+              {CURATED_VOICES.map((v) => (
+                <button
+                  key={v.id}
+                  type="button"
+                  onClick={() => handleVoiceChange(v.id)}
+                  className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                    activeVoiceId === v.id
+                      ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+                  }`}
+                  title={`${v.name}: ${v.description}`}
+                >
+                  {v.name}
+                </button>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => audioPlayer.previewVoice(activeVoiceId)}
+              className="px-2.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-amber-500/40 text-amber-300 hover:text-amber-200 text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer"
+              title="Test this clear voice speaking a preview sample"
+            >
+              <Volume2 className="w-3.5 h-3.5 text-amber-400" />
+              <span>Test Voice</span>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2 text-slate-400 text-[11px] bg-slate-950/60 px-2.5 py-1 rounded border border-slate-800/60">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span>HD Clear Professional Voice · Natural Pacing</span>
+          </div>
+        </div>
+
         {/* Section Navigation Tabs */}
         <div className="mt-4 pt-4 border-t border-slate-800/80 flex items-center gap-2 overflow-x-auto pb-1">
           {tour.sections.map((sec, idx) => {
@@ -306,61 +373,28 @@ ${s.content}
       {/* Main Dual-Pane Tour View */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
-        {/* Left Column: Interactive Tour Route & Waypoint Timeline (4 cols) */}
-        <div className="lg:col-span-4 bg-slate-900/90 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xl space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-            <h2 className="text-sm font-semibold text-white flex items-center gap-2">
-              <Compass className="w-4 h-4 text-amber-400" />
-              <span>Tour Walking Route</span>
-            </h2>
-            <span className="text-xs text-slate-400 font-mono">{tour.waypoints.length} stops</span>
-          </div>
-
-          <div className="space-y-4 relative before:absolute before:left-3.5 before:top-4 before:bottom-4 before:w-0.5 before:bg-slate-800">
-            {tour.waypoints.map((wp, i) => (
-              <div 
-                key={wp.id}
-                className="relative pl-8 group cursor-pointer"
-                onClick={() => {
-                  const targetSec = Math.min(i, tour.sections.length - 1);
-                  handleSelectSection(targetSec);
-                }}
-              >
-                {/* Step pin */}
-                <div className="absolute left-1.5 top-0.5 -translate-x-1/2 w-5 h-5 rounded-full bg-slate-900 border-2 border-amber-500 text-amber-400 text-[10px] font-mono font-bold flex items-center justify-center group-hover:scale-110 transition-transform">
-                  {wp.stepNumber}
-                </div>
-
-                <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800/80 group-hover:border-amber-500/50 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-bold text-slate-200 group-hover:text-amber-300 transition-colors">
-                      {wp.name}
-                    </h3>
-                    <span className="text-[10px] font-mono text-amber-400/90">{wp.category}</span>
-                  </div>
-                  <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
-                    {wp.description}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/70 text-[11px] text-slate-400">
-            <span className="font-semibold text-slate-300 block mb-1">🎧 Walking Tip</span>
-            <p>Listen at a comfortable walking pace. Pause the audio whenever you want to take photos or examine intricate masonry.</p>
-          </div>
+        {/* Left Column: Interactive Vector Route Map & Waypoint Explorer (5 cols) */}
+        <div className="lg:col-span-5">
+          <TourRouteMap
+            waypoints={tour.waypoints}
+            activeWaypointIndex={activeSectionIndex}
+            onSelectWaypoint={(index) => {
+              const targetSec = Math.min(index, tour.sections.length - 1);
+              handleSelectSection(targetSec);
+            }}
+            tourLocation={tour.location}
+          />
         </div>
 
-        {/* Right Column: Active Narrative Reader (8 cols) */}
-        <div className="lg:col-span-8 bg-slate-900/90 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-xl">
+        {/* Right Column: Active Narrative Reader (7 cols) */}
+        <div className="lg:col-span-7 bg-slate-900/90 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-xl">
           
           {/* Chapter header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 border-b border-slate-800">
             <div>
               <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                  {activeSection.category} Specialist
+                <span className="px-2 py-0.5 rounded text-[10px] uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/20 font-medium">
+                  {getGuideName(activeSection.agentName)}
                 </span>
                 <span className="text-xs text-slate-500 font-mono">
                   {activeSection.wordCount} words · ~{activeSection.durationMinutes} min read
@@ -372,7 +406,7 @@ ${s.content}
             </div>
 
             <button
-              onClick={() => playCurrentSection(activeSectionIndex)}
+              onClick={() => playCurrentSection(activeSectionIndex, 0)}
               className="px-3.5 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-semibold flex items-center gap-1.5 transition-colors self-start sm:self-auto cursor-pointer"
             >
               <Volume2 className="w-3.5 h-3.5" />
@@ -398,20 +432,22 @@ ${s.content}
           )}
 
           {/* Spoken Narration Paragraphs */}
-          <div className="space-y-5 text-slate-200 text-base sm:text-lg leading-relaxed font-serif pt-2">
+          <div className="space-y-4 text-slate-200 text-base sm:text-lg leading-relaxed font-serif pt-2">
             {activeSection.paragraphs.map((paragraph, pIdx) => {
               const isCurrentPlaying = isPlaying && activeParagraphIndex === pIdx;
               return (
-                <p 
+                <div 
                   key={pIdx}
-                  className={`p-3 rounded-xl transition-all duration-300 ${
+                  onClick={() => playCurrentSection(activeSectionIndex, pIdx)}
+                  className={`p-3.5 rounded-xl transition-all duration-300 cursor-pointer border ${
                     isCurrentPlaying
-                      ? 'bg-amber-500/10 border-l-4 border-amber-500 text-white shadow-inner font-medium'
-                      : 'hover:bg-slate-950/40'
+                      ? 'bg-amber-500/15 border-amber-500/80 text-white shadow-lg shadow-amber-950/20 ring-1 ring-amber-500/30 font-medium'
+                      : 'border-transparent hover:border-slate-800 hover:bg-slate-950/40'
                   }`}
+                  title="Click to hear this paragraph"
                 >
-                  {paragraph}
-                </p>
+                  <p>{paragraph}</p>
+                </div>
               );
             })}
           </div>

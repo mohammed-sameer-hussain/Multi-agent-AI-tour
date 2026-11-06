@@ -193,6 +193,55 @@ app.post('/api/tours/save', optionalAuth, (req, res) => {
   res.json({ success: true, tour });
 });
 
+// High-Fidelity Text-to-Speech Endpoint
+app.post('/api/tts/speak', async (req, res) => {
+  try {
+    const { text, voiceName = 'Kore', style = 'Clear, elegant, and warm professional museum audio guide' } = req.body;
+    if (!text || typeof text !== 'string') {
+      return res.status(400).json({ error: 'Text is required' });
+    }
+
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(503).json({ error: 'Gemini API key not configured for cloud TTS' });
+    }
+
+    const { GoogleGenAI } = await import('@google/genai');
+    const ai = new GoogleGenAI({
+      apiKey: process.env.GEMINI_API_KEY,
+      httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
+    });
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.8-flash-lite-tts',
+      contents: [{
+        role: 'user',
+        parts: [{
+          text: text.slice(0, 1000),
+          speechMetadata: { style }
+        }]
+      }],
+      config: {
+        responseModalities: ['AUDIO'],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: { voiceName }
+          }
+        }
+      }
+    });
+
+    const audioBase64 = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+    if (!audioBase64) {
+      return res.status(502).json({ error: 'No audio returned from Gemini TTS' });
+    }
+
+    res.json({ success: true, audioBase64, mimeType: 'audio/wav' });
+  } catch (error: any) {
+    console.warn('Gemini TTS error:', error.message);
+    res.status(500).json({ error: error.message || 'TTS generation failed' });
+  }
+});
+
 // ----------------------------------------------------
 // VITE DEV SERVER OR STATIC ASSETS
 // ----------------------------------------------------

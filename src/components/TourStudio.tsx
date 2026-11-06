@@ -3,7 +3,6 @@ import {
   Compass, 
   MapPin, 
   Clock, 
-  Sliders, 
   Mic2, 
   Sparkles, 
   ChevronRight, 
@@ -14,10 +13,15 @@ import {
   CheckCircle2, 
   Loader2, 
   AlertCircle,
-  Volume2
+  Volume2,
+  Footprints,
+  Coffee,
+  Camera,
+  Navigation
 } from 'lucide-react';
 import { InterestCategory, VoiceStyle, Tour, AgentStepStatus } from '../lib/types.ts';
 import { calculateWordBudget, formatDuration } from '../lib/agents/planner.ts';
+import { audioPlayer } from '../lib/audio/audioEngine.ts';
 
 interface TourStudioProps {
   onTourGenerated: (tour: Tour) => void;
@@ -25,38 +29,83 @@ interface TourStudioProps {
 }
 
 const PRESET_LOCATIONS = [
+  { name: 'City Palace & Hawa Mahal', city: 'Jaipur, India' },
+  { name: 'Amba Vilas Palace', city: 'Mysore, India' },
   { name: 'Colosseum & Roman Forum', city: 'Rome, Italy' },
   { name: 'Gothic Quarter (Barri Gòtic)', city: 'Barcelona, Spain' },
-  { name: 'Gion District & Kennin-ji', city: 'Kyoto, Japan' },
+  { name: 'Gion District & Shrines', city: 'Kyoto, Japan' },
   { name: 'Piazza del Duomo & Uffizi', city: 'Florence, Italy' },
-  { name: 'Montmartre & Sacré-Cœur', city: 'Paris, France' },
-  { name: 'Old Town & Royal Mile', city: 'Edinburgh, Scotland' }
+  { name: 'City Palace of Mewar', city: 'Udaipur, India' },
+  { name: 'Montmartre & Sacré-Cœur', city: 'Paris, France' }
 ];
 
 const INTEREST_CONFIGS: { category: InterestCategory; label: string; icon: any; desc: string }[] = [
   { 
-    category: 'Architecture', 
-    label: 'Architecture', 
-    icon: Building2, 
-    desc: 'Engineering feats, stone facades, Gothic & Modernist design elements' 
+    category: 'History', 
+    label: 'History & Legends', 
+    icon: Landmark, 
+    desc: 'Ancient stories, revolutions, pivotal moments, and forgotten local lore' 
   },
   { 
-    category: 'History', 
-    label: 'History', 
-    icon: Landmark, 
-    desc: 'Archival stories, empires, pivotal revolutions, and historic legends' 
+    category: 'Architecture', 
+    label: 'Architecture & Sights', 
+    icon: Building2, 
+    desc: 'Famous facades, cathedral spires, stone masonry, and design details' 
   },
   { 
     category: 'Culture', 
-    label: 'Culture & Arts', 
+    label: 'Culture & Daily Life', 
     icon: Palette, 
-    desc: 'Living customs, music, artisan quarters, and neighborhood atmosphere' 
+    desc: 'Neighborhood vibe, living traditions, artisan studios, and music' 
   },
   { 
     category: 'Culinary', 
-    label: 'Culinary Traditions', 
+    label: 'Food & Historic Markets', 
     icon: UtensilsCrossed, 
-    desc: 'Historic street food, regional delicacies, markets, and flavor origins' 
+    desc: 'Street specialties, centuries-old recipes, market stalls, and regional flavors' 
+  }
+];
+
+const FAMOUS_DESTINATIONS = [
+  {
+    id: 'tour-jaipur-city-palace',
+    title: 'Jaipur: Royal Courtyards of City Palace & Hawa Mahal',
+    city: 'Jaipur, Rajasthan, India',
+    highlight: '953 pink sandstone jharokha windows, peacock gates, and royal Rajasthani saffron sweets.',
+    duration: '15 min walk',
+    tag: 'Rajput Royalty'
+  },
+  {
+    id: 'tour-mysore-palace',
+    title: 'Mysore: Golden Splendor of Amba Vilas Palace',
+    city: 'Mysore, Karnataka, India',
+    highlight: 'Wadiyar dynasty throne halls, Glasgow peacock stained glass, and authentic Mysore Pak.',
+    duration: '15 min walk',
+    tag: 'Royal Heritage'
+  },
+  {
+    id: 'tour-barcelona-gothic',
+    title: 'Barcelona: Gothic Quarter & Medieval Alleys',
+    city: 'Barcelona, Spain',
+    highlight: 'Roman walls, 14th-century cathedral courtyards, and lively tapas taverns.',
+    duration: '15 min walk',
+    tag: 'Medieval & Modernist'
+  },
+  {
+    id: 'tour-kyoto-ancient',
+    title: 'Kyoto: Gion Teahouses & Zen Shrines',
+    city: 'Kyoto, Japan',
+    highlight: 'Preserved wooden machiya facades, peaceful rock gardens, and lantern-lit stone paths.',
+    duration: '15 min walk',
+    tag: 'Ancient Heritage'
+  },
+  {
+    id: 'tour-florence-renaissance',
+    title: 'Florence: Renaissance Wonders of the Medici',
+    city: 'Florence, Italy',
+    highlight: 'Brunelleschi\'s cathedral dome, Ponte Vecchio goldsmiths, and authentic Tuscan cuisine.',
+    duration: '15 min walk',
+    tag: 'Renaissance Art'
   }
 ];
 
@@ -64,12 +113,12 @@ export function TourStudio({ onTourGenerated, onExploreSample }: TourStudioProps
   const [location, setLocation] = useState('Colosseum & Roman Forum, Rome');
   const [interests, setInterests] = useState<InterestCategory[]>(['History', 'Architecture']);
   const [duration, setDuration] = useState<number>(15);
-  const [voiceStyle, setVoiceStyle] = useState<VoiceStyle>('Friendly & Casual');
+  const [voiceStyle, setVoiceStyle] = useState<VoiceStyle>('Clear & Professional Docent');
   
-  // Multi-agent execution state
+  // Generation state
   const [isGenerating, setIsGenerating] = useState(false);
-  const [agentSteps, setAgentSteps] = useState<AgentStepStatus[]>([]);
-  const [activeAgentMessage, setActiveAgentMessage] = useState<string>('');
+  const [generationSteps, setGenerationSteps] = useState<{ id: string; title: string; status: 'running' | 'completed'; desc: string }[]>([]);
+  const [currentStepMessage, setCurrentStepMessage] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
 
   const budget = calculateWordBudget(duration, interests);
@@ -86,29 +135,25 @@ export function TourStudio({ onTourGenerated, onExploreSample }: TourStudioProps
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!location.trim()) {
-      setError('Please specify a tour location or landmark.');
+      setError('Please enter a landmark or historic destination.');
       return;
     }
 
     setError(null);
     setIsGenerating(true);
-    setAgentSteps([]);
-    setActiveAgentMessage('Initializing Multi-Agent Orchestration Engine...');
+    setCurrentStepMessage(`Discovering historic highlights of ${location.trim()}...`);
+    
+    // Human-understandable tour guide creation steps
+    setGenerationSteps([
+      {
+        id: 'step-plan',
+        title: 'Planning Walking Route & Time',
+        status: 'running',
+        desc: `Pacing a comfortable ${duration}-minute walk with stops at key viewpoints.`
+      }
+    ]);
 
     try {
-      // Setup initial simulated steps for UI responsiveness
-      const initialSteps: AgentStepStatus[] = [
-        {
-          id: 'step-planner',
-          name: 'PlannerAgent',
-          role: 'Time & Resource Allocator',
-          status: 'running',
-          message: `Evaluating ${location} and apportioning ${duration} minutes across ${interests.length} domains...`,
-          timestamp: Date.now()
-        }
-      ];
-      setAgentSteps(initialSteps);
-
       const res = await fetch('/api/tours/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -125,40 +170,28 @@ export function TourStudio({ onTourGenerated, onExploreSample }: TourStudioProps
         throw new Error(data.error || 'Failed to generate tour');
       }
 
-      // Populate completed agent steps from server response
-      if (data.agentSteps && data.agentSteps.length > 0) {
-        setAgentSteps(data.agentSteps);
-      } else {
-        // Fallback agent steps summary
-        setAgentSteps([
-          {
-            id: 'step-planner',
-            name: 'PlannerAgent',
-            role: 'Time Allocator',
-            status: 'completed',
-            message: `Allocated ${budget.totalWords} words (~150 words/min) across ${interests.join(', ')}.`,
-            timestamp: Date.now()
-          },
-          ...interests.map(i => ({
-            id: `step-${i.toLowerCase()}`,
-            name: `${i}Agent`,
-            role: `${i} Specialist`,
-            status: 'completed' as const,
-            message: `Synthesized spoken ${i.toLowerCase()} narration with archival details.`,
-            timestamp: Date.now()
-          })),
-          {
-            id: 'step-orchestrator',
-            name: 'OrchestratorAgent',
-            role: 'Tour Director',
-            status: 'completed',
-            message: `Assembled ${data.tour.sections.length} audio sections with seamless walk transitions.`,
-            timestamp: Date.now()
-          }
-        ]);
-      }
+      // Friendly completed travel steps
+      setGenerationSteps([
+        {
+          id: 'step-plan',
+          title: 'Route Planned',
+          status: 'completed',
+          desc: `Prepared a ${duration}-minute walking route focusing on ${interests.join(' and ')}.`
+        },
+        {
+          id: 'step-stories',
+          title: 'Historical Stories & Sights Curated',
+          status: 'completed',
+          desc: `Researched iconic landmarks, hidden details, and authentic stories.`
+        },
+        {
+          id: 'step-audio',
+          title: 'Spoken Narration Ready',
+          status: 'completed',
+          desc: `Generated natural, conversational audio narration with walking directions.`
+        }
+      ]);
 
-      // Small pause to allow user to admire the completed steps
       setTimeout(() => {
         setIsGenerating(false);
         onTourGenerated(data.tour);
@@ -166,7 +199,7 @@ export function TourStudio({ onTourGenerated, onExploreSample }: TourStudioProps
 
     } catch (err: any) {
       console.error(err);
-      setError(err.message || 'Error occurred while running specialist agents.');
+      setError(err.message || 'Error occurred while creating your audio tour.');
       setIsGenerating(false);
     }
   };
@@ -175,21 +208,37 @@ export function TourStudio({ onTourGenerated, onExploreSample }: TourStudioProps
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
       
       {/* Hero Welcome banner */}
-      <div className="mb-8 lg:mb-12">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded bg-amber-950/40 border border-amber-800/40 text-amber-300 text-xs font-mono mb-3">
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>Multi-Agent Self-Guided Audio Engine</span>
+      <div className="mb-8 lg:mb-10">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-950/40 border border-amber-800/40 text-amber-300 text-xs font-medium mb-3">
+          <Footprints className="w-3.5 h-3.5" />
+          <span>Self-Guided Audio Walking Tours</span>
         </div>
         <h1 className="text-3xl sm:text-4xl lg:text-5xl font-serif font-extrabold text-white tracking-tight leading-tight">
-          Craft Your Bespoke AI Audio Tour
+          Explore Historic Places with a Personal Guide in Your Pocket
         </h1>
         <p className="mt-3 text-base sm:text-lg text-slate-300 max-w-3xl leading-relaxed">
-          Four specialist voice agents collaborate in real-time to analyze your destination, weave historical narratives, dissect architectural wonders, and uncover hidden culinary secrets.
+          Type any monument, historic city, or picturesque neighborhood to get an engaging, spoken walking tour. Learn the stories behind ancient stone walls, cathedral facades, and local culinary traditions at your own pace.
         </p>
 
         {/* Quick sample launch pills */}
         <div className="mt-5 flex flex-wrap items-center gap-2 text-xs text-slate-400">
-          <span className="font-medium text-slate-300">Quick-load curated tours:</span>
+          <span className="font-medium text-slate-300">Quick-load popular walks:</span>
+          <button
+            type="button"
+            onClick={() => onExploreSample('tour-jaipur-city-palace')}
+            className="hover:text-amber-400 hover:underline transition-colors text-amber-300 font-medium"
+          >
+            Jaipur City Palace & Hawa Mahal
+          </button>
+          <span>·</span>
+          <button
+            type="button"
+            onClick={() => onExploreSample('tour-mysore-palace')}
+            className="hover:text-amber-400 hover:underline transition-colors text-amber-300 font-medium"
+          >
+            Mysore Amba Vilas Palace
+          </button>
+          <span>·</span>
           <button
             type="button"
             onClick={() => onExploreSample('tour-barcelona-gothic')}
@@ -203,7 +252,7 @@ export function TourStudio({ onTourGenerated, onExploreSample }: TourStudioProps
             onClick={() => onExploreSample('tour-kyoto-ancient')}
             className="hover:text-amber-400 hover:underline transition-colors"
           >
-            Kyoto Gion District
+            Kyoto Gion & Shrines
           </button>
           <span>·</span>
           <button
@@ -222,14 +271,14 @@ export function TourStudio({ onTourGenerated, onExploreSample }: TourStudioProps
         <div className="lg:col-span-7 bg-slate-900/90 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-xl">
           <form onSubmit={handleGenerate} className="space-y-6">
             
-            {/* Step 1: Location */}
+            {/* Step 1: Destination / Location */}
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="text-sm font-semibold text-white flex items-center gap-2" htmlFor="tour-location">
                   <MapPin className="w-4 h-4 text-amber-400" />
-                  <span>Where would you like to explore?</span>
+                  <span>Where are you exploring?</span>
                 </label>
-                <span className="text-xs text-slate-400">Landmark, neighborhood, or city</span>
+                <span className="text-xs text-slate-400">Landmark, district, or town</span>
               </div>
               <div className="relative">
                 <input
@@ -243,14 +292,14 @@ export function TourStudio({ onTourGenerated, onExploreSample }: TourStudioProps
                 />
               </div>
 
-              {/* Presets */}
+              {/* Popular Historic Landmarks Presets */}
               <div className="mt-2.5 flex flex-wrap gap-1.5">
                 {PRESET_LOCATIONS.map((preset) => (
                   <button
                     key={preset.name}
                     type="button"
                     onClick={() => setLocation(`${preset.name}, ${preset.city}`)}
-                    className="text-[11px] px-2.5 py-1 rounded bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800/80 transition-colors"
+                    className="text-[11px] px-2.5 py-1 rounded bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800/80 transition-colors cursor-pointer"
                   >
                     {preset.name}
                   </button>
@@ -258,12 +307,12 @@ export function TourStudio({ onTourGenerated, onExploreSample }: TourStudioProps
               </div>
             </div>
 
-            {/* Step 2: Specialist Interests */}
+            {/* Step 2: Interests / Topics */}
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="text-sm font-semibold text-white flex items-center gap-2">
                   <Compass className="w-4 h-4 text-amber-400" />
-                  <span>Select Specialist Agent Domains</span>
+                  <span>What would you like to discover on this walk?</span>
                 </label>
                 <span className="text-xs text-slate-400">{interests.length} selected</span>
               </div>
@@ -277,7 +326,7 @@ export function TourStudio({ onTourGenerated, onExploreSample }: TourStudioProps
                       key={config.category}
                       type="button"
                       onClick={() => toggleInterest(config.category)}
-                      className={`p-3.5 rounded-xl border text-left transition-all flex items-start gap-3 group ${
+                      className={`p-3.5 rounded-xl border text-left transition-all flex items-start gap-3 group cursor-pointer ${
                         isSelected
                           ? 'bg-amber-950/20 border-amber-500/60 shadow-sm shadow-amber-950/30'
                           : 'bg-slate-950/70 border-slate-800/80 hover:border-slate-700'
@@ -305,17 +354,17 @@ export function TourStudio({ onTourGenerated, onExploreSample }: TourStudioProps
               </div>
             </div>
 
-            {/* Step 3: Tour Duration & Pacing */}
+            {/* Step 3: Walking Duration */}
             <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800/80">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <Clock className="w-4 h-4 text-amber-400" />
-                  <span className="text-sm font-semibold text-white">Target Tour Duration</span>
+                  <span className="text-sm font-semibold text-white">Walking Tour Duration</span>
                 </div>
-                <div className="flex items-center gap-2 text-xs font-mono">
-                  <span className="text-amber-400 font-bold">{formatDuration(duration)}</span>
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-amber-400 font-bold font-mono">{formatDuration(duration)}</span>
                   <span className="text-slate-500">·</span>
-                  <span className="text-slate-400">~{budget.totalWords} words (150 wpm)</span>
+                  <span className="text-slate-400">Comfortable walking pace</span>
                 </div>
               </div>
 
@@ -327,23 +376,37 @@ export function TourStudio({ onTourGenerated, onExploreSample }: TourStudioProps
                 value={duration}
                 onChange={(e) => setDuration(Number(e.target.value))}
                 className="w-full accent-amber-500 cursor-pointer h-2 bg-slate-800 rounded-lg"
-                aria-label="Tour Duration in minutes"
+                aria-label="Walking Tour Duration in minutes"
               />
 
               <div className="flex justify-between text-[11px] text-slate-500 mt-2 font-mono">
-                <span>5m (Bite-sized)</span>
-                <span>15m (Recommended)</span>
-                <span>30m (In-depth)</span>
-                <span>60m (Comprehensive)</span>
+                <span>5m (Quick Highlight)</span>
+                <span>15m (Standard Walk)</span>
+                <span>30m (In-Depth Discovery)</span>
+                <span>60m (Grand Tour)</span>
               </div>
             </div>
 
-            {/* Step 4: Voice Style & Personality */}
+            {/* Step 4: Tour Guide Tone */}
             <div>
-              <label className="text-sm font-semibold text-white flex items-center gap-2 mb-2" htmlFor="tour-voice-style">
-                <Mic2 className="w-4 h-4 text-amber-400" />
-                <span>Guide Persona & Voice Tone</span>
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-semibold text-white flex items-center gap-2" htmlFor="tour-voice-style">
+                  <Mic2 className="w-4 h-4 text-amber-400" />
+                  <span>Guide's Speaking Style & Voice</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const voiceId = voiceStyle.includes('Scholarly') ? 'david' : voiceStyle.includes('Enthusiastic') ? 'julian' : 'serena';
+                    audioPlayer.previewVoice(voiceId);
+                  }}
+                  className="text-xs text-amber-300 hover:text-amber-200 bg-slate-950 px-2.5 py-1 rounded-md border border-slate-800 hover:border-amber-500/40 transition-colors flex items-center gap-1.5 cursor-pointer"
+                  title="Test how clear and natural this voice sounds"
+                >
+                  <Volume2 className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Test Voice</span>
+                </button>
+              </div>
 
               <select
                 id="tour-voice-style"
@@ -351,13 +414,19 @@ export function TourStudio({ onTourGenerated, onExploreSample }: TourStudioProps
                 onChange={(e) => setVoiceStyle(e.target.value as VoiceStyle)}
                 className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-200 focus:outline-none focus:border-amber-500 cursor-pointer"
               >
-                <option value="Friendly & Casual">Friendly & Casual — Warm local friend walking beside you</option>
-                <option value="Professional & Detailed">Professional & Detailed — Scholarly docent and architectural historian</option>
-                <option value="Enthusiastic & Energetic">Enthusiastic & Energetic — Passionate storyteller with infectious sensory flair</option>
+                <option value="Clear & Professional Docent">Serena (Clear & Professional Docent) — Crystal-clear, elegant British museum docent tone</option>
+                <option value="Warm & Scholarly">David (Warm & Scholarly) — Rich baritone, eloquent historian with crisp articulation</option>
+                <option value="Friendly & Casual">Aria (Friendly & Modern) — Engaging, insightful conversational guide</option>
+                <option value="Professional & Detailed">Scholarly & Detailed — Formal historian highlighting architectural dates and methods</option>
+                <option value="Enthusiastic & Energetic">Julian (Enthusiastic Storyteller) — Passionate, vivid narrator full of local lore</option>
               </select>
+              <div className="mt-2 flex items-center gap-2 text-[11px] text-slate-400">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <span>Features natural sentence pacing, clear enunciation, and interactive paragraph sync.</span>
+              </div>
             </div>
 
-            {/* Error Notification */}
+            {/* Error Message */}
             {error && (
               <div className="p-3.5 rounded-lg bg-rose-950/60 border border-rose-800 text-rose-300 text-xs flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0" />
@@ -365,7 +434,7 @@ export function TourStudio({ onTourGenerated, onExploreSample }: TourStudioProps
               </div>
             )}
 
-            {/* Primary Generate Button */}
+            {/* Submit Button */}
             <button
               type="submit"
               disabled={isGenerating}
@@ -374,12 +443,12 @@ export function TourStudio({ onTourGenerated, onExploreSample }: TourStudioProps
               {isGenerating ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>Multi-Agent System Generating Tour...</span>
+                  <span>Preparing Your Audio Walking Tour...</span>
                 </>
               ) : (
                 <>
                   <Volume2 className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                  <span>Generate Audio Tour ({formatDuration(duration)})</span>
+                  <span>Create Audio Tour ({formatDuration(duration)})</span>
                   <ChevronRight className="w-5 h-5 ml-auto" />
                 </>
               )}
@@ -387,102 +456,105 @@ export function TourStudio({ onTourGenerated, onExploreSample }: TourStudioProps
           </form>
         </div>
 
-        {/* Right Info & Live Stepper Column (5 cols) */}
+        {/* Right Tourist & Historical Places Column (5 cols) */}
         <div className="lg:col-span-5 space-y-6">
           
-          {/* Multi-Agent Architecture Card */}
-          <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl">
-            <h2 className="text-base font-semibold text-white flex items-center gap-2 mb-4">
-              <Sparkles className="w-4 h-4 text-amber-400" />
-              <span>Multi-Agent Orchestration Flow</span>
-            </h2>
+          {/* Generation in Progress State */}
+          {isGenerating ? (
+            <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+              <div className="flex items-center gap-2 text-amber-400 text-sm font-semibold">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Creating Your Personalized Guide</span>
+              </div>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                {currentStepMessage}
+              </p>
 
-            {isGenerating || agentSteps.length > 0 ? (
-              <div className="space-y-4">
-                <div className="p-3 rounded-lg bg-slate-950/80 border border-slate-800/80 text-xs">
-                  <span className="text-amber-400 font-mono font-medium block mb-1">Status:</span>
-                  <p className="text-slate-300 font-mono animate-pulse">
-                    {activeAgentMessage || 'Agents actively conversing & generating sections...'}
-                  </p>
+              <div className="space-y-3 pt-2">
+                {generationSteps.map((step) => (
+                  <div key={step.id} className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-slate-200">{step.title}</span>
+                      {step.status === 'completed' ? (
+                        <span className="text-emerald-400 flex items-center gap-1 text-[11px]">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Ready</span>
+                        </span>
+                      ) : (
+                        <span className="text-amber-400 flex items-center gap-1 text-[11px]">
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Writing</span>
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-slate-400 mt-1">{step.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Featured Tourist & Historical Places */}
+              <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-base font-semibold text-white flex items-center gap-2">
+                    <Landmark className="w-4 h-4 text-amber-400" />
+                    <span>Popular Historic Walks</span>
+                  </h2>
+                  <span className="text-xs text-slate-400">Curated audio tours</span>
                 </div>
 
-                <div className="space-y-2.5">
-                  {agentSteps.map((step, sIdx) => (
-                    <div 
-                      key={`${step.id}-${step.status}-${sIdx}`} 
-                      className="p-3 rounded-xl bg-slate-950 border border-slate-800/80 text-xs transition-all"
+                <div className="space-y-3">
+                  {FAMOUS_DESTINATIONS.map((dest) => (
+                    <div
+                      key={dest.id}
+                      onClick={() => onExploreSample(dest.id)}
+                      className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 hover:border-amber-500/50 transition-all cursor-pointer group"
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold text-slate-200">{step.name}</span>
-                        {step.status === 'completed' ? (
-                          <span className="text-emerald-400 flex items-center gap-1 font-mono text-[11px]">
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>Done</span>
-                          </span>
-                        ) : (
-                          <span className="text-amber-400 flex items-center gap-1 font-mono text-[11px]">
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Working</span>
-                          </span>
-                        )}
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-semibold text-white group-hover:text-amber-300 transition-colors">
+                          {dest.title}
+                        </span>
+                        <span className="text-[10px] text-amber-400 font-mono">{dest.duration}</span>
                       </div>
-                      <p className="text-slate-400 mt-1">{step.message}</p>
-                      {step.outputPreview && (
-                        <p className="text-[11px] text-slate-500 italic mt-1.5 border-t border-slate-900 pt-1">
-                          "{step.outputPreview}"
-                        </p>
-                      )}
+                      <p className="text-xs text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                        {dest.highlight}
+                      </p>
+                      <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
+                        <span>{dest.tag}</span>
+                        <span className="text-amber-400 group-hover:translate-x-0.5 transition-transform flex items-center gap-1">
+                          Listen now →
+                        </span>
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
-            ) : (
-              <div className="space-y-3.5 text-xs text-slate-300">
-                <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/60">
-                  <span className="font-semibold text-amber-300 block mb-0.5">1. Planner Agent</span>
-                  <p className="text-slate-400">Calculates precise minute-by-minute time distribution and word caps for optimal spoken pacing.</p>
-                </div>
 
-                <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/60">
-                  <span className="font-semibold text-amber-300 block mb-0.5">2. Specialist Agents</span>
-                  <p className="text-slate-400">Four targeted AI models (Architecture, History, Culture, Culinary) conduct domain research with zero fluff.</p>
-                </div>
+              {/* Practical Tourist Walking Tips */}
+              <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800/70 text-xs space-y-3">
+                <h3 className="font-semibold text-slate-200 flex items-center gap-2">
+                  <Navigation className="w-4 h-4 text-amber-400" />
+                  <span>Tips for Your Audio Walking Tour</span>
+                </h3>
 
-                <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/60">
-                  <span className="font-semibold text-amber-300 block mb-0.5">3. Orchestrator Agent</span>
-                  <p className="text-slate-400">Synthesizes the expert narratives with natural walk transitions, waypoints, and expressive introductions.</p>
+                <div className="space-y-2 text-slate-400 leading-relaxed">
+                  <div className="flex items-start gap-2.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-1.5 shrink-0"></span>
+                    <p><strong className="text-slate-300">Wear Headphones:</strong> Audio tours feel truly immersive with headphones so you hear ambient details clearly.</p>
+                  </div>
+                  <div className="flex items-start gap-2.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-1.5 shrink-0"></span>
+                    <p><strong className="text-slate-300">Pause for Photos:</strong> Stop playback at any viewpoint to admire stone facades or capture memories.</p>
+                  </div>
+                  <div className="flex items-start gap-2.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-1.5 shrink-0"></span>
+                    <p><strong className="text-slate-300">Download for Offline:</strong> Traveling without cellular data? Use the "Download Audio" button to listen anywhere.</p>
+                  </div>
                 </div>
-
-                <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/60">
-                  <span className="font-semibold text-amber-300 block mb-0.5">4. Speech & Export Engine</span>
-                  <p className="text-slate-400">Renders high-quality audio narration with real-time text synchronization and downloadable audio files.</p>
-                </div>
               </div>
-            )}
-          </div>
-
-          {/* Quick Specs summary */}
-          <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800/70 text-xs">
-            <h3 className="font-semibold text-slate-200 mb-2">Engine Specifications</h3>
-            <div className="space-y-1.5 text-slate-400 font-mono text-[11px]">
-              <div className="flex justify-between">
-                <span>Speaking Rate:</span>
-                <span className="text-slate-200">150 words/minute</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Model Engine:</span>
-                <span className="text-slate-200">Gemini 2.5 Flash</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Audio Engine:</span>
-                <span className="text-slate-200">Web Speech API + WAV</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Security:</span>
-                <span className="text-slate-200">Bcrypt + JWT Protected</span>
-              </div>
-            </div>
-          </div>
+            </>
+          )}
 
         </div>
 

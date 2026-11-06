@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Lock, Mail, User, Sparkles, AlertCircle, ArrowRight, Check } from 'lucide-react';
+import { X, Lock, Mail, User, AlertCircle, ArrowRight } from 'lucide-react';
 import { useAuth } from '../lib/auth/AuthContext.tsx';
 
 interface AuthModalProps {
@@ -8,7 +8,7 @@ interface AuthModalProps {
 }
 
 export function AuthModal({ isOpen, onClose }: AuthModalProps) {
-  const { login, register, loginDemo } = useAuth();
+  const { login, register } = useAuth();
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -32,19 +32,6 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
       onClose();
     } catch (err: any) {
       setError(err.message || 'Authentication failed');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDemo = async (type: 'explorer' | 'traveler') => {
-    setError(null);
-    setLoading(true);
-    try {
-      await loginDemo(type);
-      onClose();
-    } catch (err: any) {
-      setError(err.message || 'Demo login failed');
     } finally {
       setLoading(false);
     }
@@ -105,34 +92,6 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
           >
             Create Account
           </button>
-        </div>
-
-        {/* Quick 1-Click Demo Accounts */}
-        <div className="mb-6 p-3 rounded-xl bg-slate-950/70 border border-slate-800/80">
-          <div className="flex items-center gap-2 mb-2 text-xs font-medium text-amber-400">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Instant Demo Test Accounts</span>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              disabled={loading}
-              onClick={() => handleDemo('explorer')}
-              className="py-1.5 px-2.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-amber-500/50 text-left text-xs transition-colors flex flex-col group disabled:opacity-50"
-            >
-              <span className="font-semibold text-slate-200 group-hover:text-amber-300">Elena Rostova</span>
-              <span className="text-[10px] text-slate-500">explorer@echoguide.ai</span>
-            </button>
-            <button
-              type="button"
-              disabled={loading}
-              onClick={() => handleDemo('traveler')}
-              className="py-1.5 px-2.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-amber-500/50 text-left text-xs transition-colors flex flex-col group disabled:opacity-50"
-            >
-              <span className="font-semibold text-slate-200 group-hover:text-amber-300">Marcus Chen</span>
-              <span className="text-[10px] text-slate-500">traveler@echoguide.ai</span>
-            </button>
-          </div>
         </div>
 
         {/* Error message */}

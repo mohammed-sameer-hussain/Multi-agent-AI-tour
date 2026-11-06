@@ -4,13 +4,12 @@ import { Navbar } from './components/Navbar.tsx';
 import { TourStudio } from './components/TourStudio.tsx';
 import { TourPlayer } from './components/TourPlayer.tsx';
 import { TourLibrary } from './components/TourLibrary.tsx';
-import { ArchitectureModal } from './components/ArchitectureModal.tsx';
 import { AuthModal } from './components/AuthModal.tsx';
 import { Tour } from './lib/types.ts';
 import { SAMPLE_TOURS } from './lib/tours/sampleTours.ts';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'studio' | 'library' | 'architecture'>('studio');
+  const [activeTab, setActiveTab] = useState<'studio' | 'library'>('studio');
   const [activeTour, setActiveTour] = useState<Tour | null>(null);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
 
@@ -73,10 +72,6 @@ export default function App() {
               onOpenAuth={() => setIsAuthOpen(true)}
             />
           )}
-
-          {activeTab === 'architecture' && (
-            <ArchitectureModal />
-          )}
         </main>
 
         {/* Global Footer */}
@@ -85,17 +80,12 @@ export default function App() {
             <div className="flex items-center gap-2">
               <span className="font-serif font-bold text-slate-300">EchoGuide</span>
               <span>·</span>
-              <span>Multi-Agent AI Audio Tour System</span>
+              <span>Personal Audio Walking Tours for Historic Places & Cities</span>
             </div>
-            <div className="flex items-center gap-4 text-slate-400">
-              <button 
-                onClick={() => setActiveTab('architecture')}
-                className="hover:text-amber-400 transition-colors"
-              >
-                Architecture & README
-              </button>
+            <div className="flex items-center gap-3 text-slate-400">
+              <span>Explore History, Sights & Local Culture</span>
               <span>·</span>
-              <span>Strict 150 wpm Spoken Audio Pacing</span>
+              <span>Listen at Your Own Walking Pace</span>
             </div>
           </div>
         </footer>

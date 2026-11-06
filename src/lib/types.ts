@@ -1,6 +1,8 @@
 export type InterestCategory = 'History' | 'Architecture' | 'Culture' | 'Culinary';
 
 export type VoiceStyle = 
+  | 'Clear & Professional Docent'
+  | 'Warm & Scholarly'
   | 'Friendly & Casual' 
   | 'Professional & Detailed' 
   | 'Enthusiastic & Energetic';
