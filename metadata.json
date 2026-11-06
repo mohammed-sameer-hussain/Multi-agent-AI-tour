@@ -1,0 +1,6 @@
+{
+  "name": "EchoGuide - Multi-Agent AI Audio Tour Guide",
+  "description": "Production-grade, personalized self-guided audio tour platform powered by specialized AI agents with immersive audio playback, route waypoints, and secure authentication.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
