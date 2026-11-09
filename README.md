@@ -1,165 +1,135 @@
-# 🎧 EchoGuide — Multi-Agent AI Audio Tour Guide Platform
+EchoGuide is a production-grade, personalized self-guided audio tour platform powered by a collaborative multi-agent generative AI pipeline.
 
-> **A production-ready, full-stack conversational voice agent platform that generates immersive, self-guided audio tours tailored to any location, interest categories, and duration.**
+Rather than relying on a single generic prompt to generate travel guides, EchoGuide deconstructs the tour creation problem into a division of cognitive labor: specialized domain agents (History, Architecture, Culture, Culinary) generate focused chapters, governed by a Mathematical Planner Agent that calculates exact spoken word budgets, and unified by a Lead Orchestrator Agent that writes welcoming introductions, seamless transitions, waypoints, and closing reflections.
 
-Built with **React 19**, **TypeScript**, **Tailwind CSS v4**, **Node.js/Express**, and powered by **Google Gemini 2.5 Flash** with specialized multi-agent orchestration, synchronized audio speech narration, and full-stack authentication.
+The platform combines this multi-agent backend with an immersive audio player (supporting both Google Gemini neural speech and client-side speech synthesis with karaoke-style text highlighting), an interactive route waypoint map, and secure authentication.
+2. Multi-Agent System Architecture
 
----
+The core innovation of the repository lies in src/lib/agents/ and src/lib/tours/tourGenerator.ts, which orchestrate three sequential execution stages:
+Code
 
-## 🚀 Quick Start in VS Code (Ready to Run)
+┌──────────────────────────┐
+                          │   User Tour Request      │
+                          │ (Location, Time, Themes) │
+                          └─────────────┬────────────┘
+                                        │
+                                        ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 1. PLANNER AGENT (Deterministic Budgeter & Architect)                       │
+│    • Inputs: Total minutes (5–45 min), Active Categories, Words/Min (150 WPM)│
+│    • Computes time slices: Intro (10%), Chapters (80% divided), Outro (10%) │
+│    • Calculates exact strict word counts per section to prevent audio drift │
+└───────────────────────────────────────┬─────────────────────────────────────┘
+                                        │
+                    ┌───────────────────┼───────────────────┐
+                    ▼                   ▼                   ▼
+    ┌───────────────────────┐ ┌───────────────────┐ ┌───────────────────┐
+    │ History Agent         │ │Architecture Agent │ │Culinary / Culture │
+    │ Archival milestones,  │ │Facades, materials,│ │Local terroir,     │
+    │ human triumphs, drama │ │engineering feats  │ │traditions, rhythms│
+    └───────────────┬───────┘ └─────────┬─────────┘ └─────────┬─────────┘
+                    └───────────────────┼───────────────────┘
+                                        │ Spoken Chapter Narratives
+                                        ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 3. ORCHESTRATOR AGENT (Lead Tour Director)                                  │
+│    • Synthesizes welcoming orientation and spatial framing                  │
+│    • Bridges chapters with seamless audio transitions                       │
+│    • Generates geographical waypoints & visual landmark stops               │
+│    • Produces reflective concluding thoughts                                │
+└───────────────────────────────────────┬─────────────────────────────────────┘
+                                        │
+                                        ▼
+                         Assembled Multi-Chapter Tour
+                      (Synced Audio + Map Waypoints)
 
-Follow these steps to run this project locally on your machine in VS Code:
+The Agent Roster
 
-### 1. Prerequisites
-- **Node.js**: Version `20.x` or `22.x+` (check with `node -v`)
-- **npm** or **bun**: Package manager
+    Mathematical Planner Agent (planner.ts):
 
-### 2. Setup & Installation
-In your VS Code terminal:
+        Calculates target durations based on standard conversational cadence (~150 words per minute).
 
-```bash
-# 1. Install all dependencies
-npm install
+        Allocates 10% to Introduction, 10% to Conclusion, and evenly distributes the remaining 80% among user-selected themes.
 
-# 2. Configure Environment Variables
-cp .env.example .env
-```
+    Domain Specialist Agents (prompts.ts):
 
-Open `.env` and set your Gemini API key (optional — rich procedural fallbacks and curated tours work out of the box if no key is provided):
+        Architecture Specialist: Analyzes structural design, engineering feats, facades, masonry, proportion, and regional materials.
 
-```env
-GEMINI_API_KEY="your-gemini-api-key-here"
-PORT=3000
-JWT_SECRET="your-secure-jwt-secret-key"
-```
+        History Specialist: Focuses on archival milestones, pivotal civic revolutions, legendary figures, and dramatic human chronicles.
 
-### 3. Launch Development Server
-```bash
-npm run dev
-```
+        Culinary Specialist: Evokes sensory descriptions of signature dishes, historic food markets, slow-cooked traditions, and terroir ingredients.
 
-Visit **[http://localhost:3000](http://localhost:3000)** in your browser!
+        Culture Specialist: Highlights living traditions, local dialect nuances, artisan workshops, and neighborhood daily life.
 
-### 4. Build for Production
-```bash
-npm run build
-npm start
-```
+    Orchestrator Agent:
 
----
+        Crafts unified narrative bridges between disparate themes (e.g., connecting how historic architectural arches accommodated ancient spice trade routes).
 
-## 🏛️ Multi-Agent Architecture
+        Outputs structured JSON containing landmark waypoints with spatial observation cues.
 
-EchoGuide adapts the multi-agent design into a high-performance, asynchronous pipeline:
+    Deterministic Procedural Fallback:
 
-```
-[ User Input: Location, Interests, Duration, Voice Style ]
-                           │
-                           ▼
-                 [ 1. Planner Agent ]
-   - Analyzes location & user interest weights
-   - Computes time allocations (Intro, Content, Conclusion)
-   - Enforces strict 150 words/minute audio pacing budget
-                           │
-                           ▼
-             [ 2. Specialist Agents (Parallel) ]
-   ├── ArchitectureAgent : Façades, engineering feats, styles
-   ├── HistoricalAgent   : Chronologies, revolutions, hidden lore
-   ├── CulturalAgent     : Living customs, music, neighborhood life
-   └── CulinaryAgent     : Signature dishes, markets, flavors
-                           │
-                           ▼
-               [ 3. Orchestrator Agent ]
-   - Creates welcoming orientation & atmospheric intro
-   - Weaves smooth walking transitions between domains
-   - Generates landmark waypoints and route timeline
-   - Synthesizes reflective conclusion
-                           │
-                           ▼
-             [ 4. Speech & Player Engine ]
-   - Real-time Web Speech API voice narration
-   - Synchronized paragraph-level reader highlight
-   - Standalone Audio (.wav) file generation & export
-```
+        If the Gemini API key is missing or encounters rate limits, the system seamlessly transitions to built-in procedural generators without breaking the tour experience.
 
----
+3. Key Features & Capabilities
+🎙️ Immersive Audio Player (src/lib/audio/audioEngine.ts & TourPlayer.tsx)
 
-## 🔒 Security & Authentication Architecture
+    Dual-Tier Audio Synthesis:
 
-1. **Server-Side API Key Proxy**:
-   - `GEMINI_API_KEY` is kept strictly on the backend (`server.ts`).
-   - Browser clients make calls to `/api/tours/generate`, preventing API key theft or exposure in client bundles.
+        Gemini 3.8 Flash Lite Cloud TTS: High-fidelity cloud neural speech generation (/api/tts/speak).
 
-2. **Authentication & Session Management**:
-   - **Password Hashing**: `bcryptjs` with 10 salt rounds for secure password storage.
-   - **JSON Web Tokens (JWT)**: HMAC-SHA256 tokens with configurable expiration (7 days).
-   - **HttpOnly Cookies & Bearer Tokens**: Supports both Authorization headers and secure cookies.
-   - **1-Click Demo Accounts**: Preloaded demo users (`explorer@echoguide.ai` and `traveler@echoguide.ai`) for instant testing without manual registration.
+        Intelligent Local Web Speech Engine: Automatically scans and selects best-in-class neural voices (Apple Enhanced, Microsoft Online Natural, Google Natural).
 
-3. **Input Sanitization & Protection**:
-   - Word count enforcement and regex cleansing against prompt injection and markdown leakage into audio streams.
+    Text Normalization: Pre-processes spoken narrative by expanding abbreviations, Roman numerals (e.g., "Louis XIV" → "Louis the Fourteenth"), and century dates before synthesis.
 
----
+    Synchronized Paragraph Highlighting: Real-time visual tracking of spoken sentences as playback advances.
 
-## 📁 Project Structure
+    Audio Controls: Variable playback speeds (0.75x, 1x, 1.25x, 1.5x), ±15-second skipping, and voice persona switching (Docent, Historian, Casual Local Companion).
 
-```
-├── server.ts                    # Express backend + Vite dev middleware & API routes
-├── src/
-│   ├── App.tsx                  # Main application orchestrator & tab controller
-│   ├── main.tsx                 # React 19 entry point
-│   ├── index.css                # Tailwind CSS v4 styling & typography
-│   ├── components/
-│   │   ├── Navbar.tsx           # Brand header, navigation & auth profile
-│   │   ├── TourStudio.tsx       # Tour generator form & live agent stepper
-│   │   ├── TourPlayer.tsx       # Interactive audio bar, waypoints & reader
-│   │   ├── TourLibrary.tsx      # Browse, filter & save curated tours
-│   │   ├── AuthModal.tsx        # Sign in, register & 1-click demo modal
-│   │   └── ArchitectureModal.tsx# In-app architecture specs & setup guide
-│   └── lib/
-│       ├── types.ts             # TypeScript domain models
-│       ├── agents/
-│       │   ├── planner.ts       # Time allocation & word budget calculations
-│       │   ├── prompts.ts       # Specialist agent prompts & personas
-│       │   └── parser.ts        # Script assembling & paragraph tokenizer
-│       ├── audio/
-│       │   └── audioEngine.ts   # Web Speech API & audio WAV blob exporter
-│       ├── auth/
-│       │   ├── authStore.ts     # Bcrypt & JWT user management
-│       │   └── AuthContext.tsx  # React Context for auth state
-│       └── tours/
-│           ├── sampleTours.ts   # Curated tours (Barcelona, Kyoto, Florence)
-│           └── tourGenerator.ts # Multi-agent Gemini orchestrator
-├── package.json                 # Modern dependencies & scripts
-├── tsconfig.json                # Strict TypeScript configuration
-└── vite.config.ts               # Vite configuration with Tailwind v4
-```
+🗺️ Visual Route Waypoint Map (TourRouteMap.tsx)
 
----
+    Generates a step-by-step route map connecting waypoints.
 
-## 🧪 Running Unit Tests
+    Landmark preview cards with category badges, descriptive observation tips, and progress tracking.
 
-We use Node's native test runner (`node:test` and `node:assert/strict`) via `tsx`:
+🎨 Tour Studio Creator (TourStudio.tsx)
 
-```bash
-# Run all tests
-npm test
+    One-click presets for world-famous destinations (Jaipur City Palace, Kyoto Gion, Rome Colosseum, Barcelona Gothic Quarter, Paris Montmartre, Udaipur).
 
-# Run individual test suites
-npx --yes tsx --test src/lib/agents/planner.test.ts
-npx --yes tsx --test src/lib/agents/parser.test.ts
-npx --yes tsx --test src/lib/auth/authStore.test.ts
-```
+    Custom destination search bar.
 
----
+    Interactive duration slider (5 to 45 minutes) with real-time word-budget and chapter estimation.
 
-## 🎛️ Voice Styles & Personas
+    Live Agent Execution Pipeline view displaying real-time agent status indicators (Running, Completed, Step logs).
 
-- **Friendly & Casual**: Warm companion, walking side-by-side with conversational cues ("Take a look to your left").
-- **Professional & Detailed**: Scholarly docent and architectural historian, highlighting construction techniques and dates.
-- **Enthusiastic & Energetic**: Vibrant local insider, packed with sensory descriptions, flavors, and dramatic stories.
+📚 Curated Tour Library & User Storage (TourLibrary.tsx)
 
----
+    Pre-loaded sample tours with rich metadata, duration, category pills, and audio scripts.
 
-## 📄 License
-Apache-2.0
+    Bookmarking / saving tours to the user's personal library.
+
+🔐 Full-Stack Authentication (server.ts & src/lib/auth/authStore.ts)
+
+    Lightweight JWT session management with HTTP-only cookies and Bearer token fallback.
+
+    Password hashing with bcryptjs.
+
+    Demo accounts initialized out of the box.
+
+4. Technology Stack
+Layer	Technologies
+Frontend UI	React 19, TypeScript, Tailwind CSS v4, Lucide Icons, Motion (Framer Motion)
+Backend & Server	Node.js, Express (server.ts), dynamic Vite middleware integration in development
+AI & LLM SDK	@google/genai (Gemini 2.5 Flash for agent generation, Gemini 3.8 Flash Lite TTS for audio)
+Audio Processing	Web Speech API, AudioContext, WAV encoder, neural voice auto-detection
+Authentication	JWT (jsonwebtoken), bcryptjs, cookie-parser
+Tooling & Build	Vite 8, tsx for TypeScript execution, ES2022
+5. Summary & Evaluation
+
+Multi-agent-AI-tour stands out as a well-structured implementation of agentic decomposition applied to a consumer travel domain:
+
+    Solves the "Monolithic Hallucination" problem: By constraining each agent to a specific word budget and domain instruction set, the resulting tours are concise, factually grounded, and paced to real-world walking times.
+
+    Zero-Friction Fallback: The codebase includes offline procedural fallbacks and browser-native TTS, ensuring the user interface remains fully functional even without live API credentials.
+
+    Production Polish: Includes full audio scrubbing, synchronized reading cursors, responsive mobile-friendly layouts, and comprehensive test files (planner.test.ts, parser.test.ts).
