@@ -1,135 +1,240 @@
-EchoGuide is a production-grade, personalized self-guided audio tour platform powered by a collaborative multi-agent generative AI pipeline.
+# EchoGuide — AI-Powered Personalized Audio Tour Platform
 
-Rather than relying on a single generic prompt to generate travel guides, EchoGuide deconstructs the tour creation problem into a division of cognitive labor: specialized domain agents (History, Architecture, Culture, Culinary) generate focused chapters, governed by a Mathematical Planner Agent that calculates exact spoken word budgets, and unified by a Lead Orchestrator Agent that writes welcoming introductions, seamless transitions, waypoints, and closing reflections.
+## 1. Project Overview
 
-The platform combines this multi-agent backend with an immersive audio player (supporting both Google Gemini neural speech and client-side speech synthesis with karaoke-style text highlighting), an interactive route waypoint map, and secure authentication.
-2. Multi-Agent System Architecture
+**EchoGuide** is a production-oriented, personalized self-guided audio tour platform powered by a collaborative multi-agent Generative AI architecture. It transforms conventional travel exploration into an interactive, location-aware storytelling experience by generating structured, engaging, and duration-controlled audio tours tailored to individual interests.
 
-The core innovation of the repository lies in src/lib/agents/ and src/lib/tours/tourGenerator.ts, which orchestrate three sequential execution stages:
-Code
+Unlike traditional AI-powered tour generators that rely on a single monolithic prompt, EchoGuide implements a **specialized multi-agent workflow** that distributes tour generation across domain-specific agents. Each agent is responsible for a distinct area of expertise, including history, architecture, culture, and culinary heritage.
 
-┌──────────────────────────┐
-                          │   User Tour Request      │
-                          │ (Location, Time, Themes) │
-                          └─────────────┬────────────┘
-                                        │
-                                        ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ 1. PLANNER AGENT (Deterministic Budgeter & Architect)                       │
-│    • Inputs: Total minutes (5–45 min), Active Categories, Words/Min (150 WPM)│
-│    • Computes time slices: Intro (10%), Chapters (80% divided), Outro (10%) │
-│    • Calculates exact strict word counts per section to prevent audio drift │
-└───────────────────────────────────────┬─────────────────────────────────────┘
-                                        │
-                    ┌───────────────────┼───────────────────┐
-                    ▼                   ▼                   ▼
-    ┌───────────────────────┐ ┌───────────────────┐ ┌───────────────────┐
-    │ History Agent         │ │Architecture Agent │ │Culinary / Culture │
-    │ Archival milestones,  │ │Facades, materials,│ │Local terroir,     │
-    │ human triumphs, drama │ │engineering feats  │ │traditions, rhythms│
-    └───────────────┬───────┘ └─────────┬─────────┘ └─────────┬─────────┘
-                    └───────────────────┼───────────────────┘
-                                        │ Spoken Chapter Narratives
-                                        ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ 3. ORCHESTRATOR AGENT (Lead Tour Director)                                  │
-│    • Synthesizes welcoming orientation and spatial framing                  │
-│    • Bridges chapters with seamless audio transitions                       │
-│    • Generates geographical waypoints & visual landmark stops               │
-│    • Produces reflective concluding thoughts                                │
-└───────────────────────────────────────┬─────────────────────────────────────┘
-                                        │
-                                        ▼
-                         Assembled Multi-Chapter Tour
-                      (Synced Audio + Map Waypoints)
+A deterministic Mathematical Planner Agent manages narrative allocation and calculates precise word budgets based on the requested tour duration. A Lead Orchestrator Agent coordinates the generated content, creates contextual transitions, establishes geographical waypoints, and assembles the final tour into a cohesive narrative.
 
-The Agent Roster
+The platform integrates AI-generated narration, intelligent text-to-speech, synchronized transcript highlighting, interactive route visualization, and secure user authentication to deliver an immersive digital tour experience.
 
-    Mathematical Planner Agent (planner.ts):
+## 2. Multi-Agent System Architecture
 
-        Calculates target durations based on standard conversational cadence (~150 words per minute).
+The core of EchoGuide is its collaborative agent orchestration pipeline, implemented through `src/lib/agents/` and `src/lib/tours/tourGenerator.ts`.
 
-        Allocates 10% to Introduction, 10% to Conclusion, and evenly distributes the remaining 80% among user-selected themes.
+The system operates through three sequential stages:
 
-    Domain Specialist Agents (prompts.ts):
+### Stage 1: Mathematical Planning and Content Allocation
 
-        Architecture Specialist: Analyzes structural design, engineering feats, facades, masonry, proportion, and regional materials.
+The Mathematical Planner Agent establishes the structural blueprint for each tour.
 
-        History Specialist: Focuses on archival milestones, pivotal civic revolutions, legendary figures, and dramatic human chronicles.
+- Accepts destination, requested duration, and selected thematic categories.
+- Supports tour durations ranging from 5 to 45 minutes.
+- Uses an estimated conversational narration speed of 150 words per minute.
+- Allocates 10% of the total narrative budget to the introduction.
+- Distributes 80% across selected thematic chapters.
+- Reserves the remaining 10% for the conclusion.
+- Calculates individual chapter word targets to maintain consistent narration duration.
 
-        Culinary Specialist: Evokes sensory descriptions of signature dishes, historic food markets, slow-cooked traditions, and terroir ingredients.
+### Stage 2: Parallel Domain-Specific Content Generation
 
-        Culture Specialist: Highlights living traditions, local dialect nuances, artisan workshops, and neighborhood daily life.
+Specialized AI agents independently generate narratives within their assigned domains.
 
-    Orchestrator Agent:
+| Specialized Agent | Primary Responsibilities |
+|---|---|
+| History Agent | Historical milestones, influential personalities, significant events, and cultural transformations. |
+| Architecture Agent | Architectural styles, structural engineering, building materials, facades, and historical construction techniques. |
+| Culinary Agent | Regional cuisine, traditional dishes, food markets, culinary heritage, and local ingredients. |
+| Culture Agent | Local traditions, dialects, artisan communities, neighborhood lifestyles, and cultural practices. |
 
-        Crafts unified narrative bridges between disparate themes (e.g., connecting how historic architectural arches accommodated ancient spice trade routes).
+Each agent receives a predefined thematic instruction set and an allocated content budget, reducing unnecessary overlap and improving narrative consistency.
 
-        Outputs structured JSON containing landmark waypoints with spatial observation cues.
+### Stage 3: Lead Orchestration and Tour Assembly
 
-    Deterministic Procedural Fallback:
+The Lead Orchestrator Agent integrates the individual narratives into a unified tour experience.
 
-        If the Gemini API key is missing or encounters rate limits, the system seamlessly transitions to built-in procedural generators without breaking the tour experience.
+Its responsibilities include:
 
-3. Key Features & Capabilities
-🎙️ Immersive Audio Player (src/lib/audio/audioEngine.ts & TourPlayer.tsx)
+- Generating welcoming introductions and destination overviews.
+- Establishing contextual connections between thematic chapters.
+- Creating seamless transitions between different storytelling perspectives.
+- Generating geographical waypoints and landmark descriptions.
+- Providing location-specific observation suggestions.
+- Producing reflective conclusions that bring the tour together.
+- Structuring the final output into machine-readable JSON.
 
-    Dual-Tier Audio Synthesis:
+### Architecture Workflow
 
-        Gemini 3.8 Flash Lite Cloud TTS: High-fidelity cloud neural speech generation (/api/tts/speak).
+```text
+                 USER TOUR REQUEST
+              (Destination, Duration,
+                 Selected Themes)
+                         |
+                         v
+              MATHEMATICAL PLANNER
+             (Duration & Word Budget)
+                         |
+                         v
+               CONTENT ALLOCATION
+                         |
+          +--------------+--------------+
+          |              |              |
+          v              v              v
+     HISTORY AGENT  ARCHITECTURE   CULTURE AGENT
+                       AGENT
+          |              |              |
+          +--------------+--------------+
+                         |
+                    CULINARY AGENT
+                         |
+                         v
+                GENERATED CHAPTERS
+                         |
+                         v
+               LEAD ORCHESTRATOR
+             (Narrative Integration)
+                         |
+             +-----------+-----------+
+             |           |           |
+             v           v           v
+          INTRO      TRANSITIONS   CONCLUSION
+             |           |           |
+             +-----------+-----------+
+                         |
+                         v
+                COMPLETE AUDIO TOUR
+                         |
+              +----------+----------+
+              |                     |
+              v                     v
+         AUDIO PLAYER         ROUTE WAYPOINTS
+              |                     |
+              v                     v
+       SYNCHRONIZED TTS       INTERACTIVE MAP
+```
 
-        Intelligent Local Web Speech Engine: Automatically scans and selects best-in-class neural voices (Apple Enhanced, Microsoft Online Natural, Google Natural).
+## 3. Core Features and Functional Capabilities
 
-    Text Normalization: Pre-processes spoken narrative by expanding abbreviations, Roman numerals (e.g., "Louis XIV" → "Louis the Fourteenth"), and century dates before synthesis.
+### 3.1 Intelligent Audio Generation and Playback
 
-    Synchronized Paragraph Highlighting: Real-time visual tracking of spoken sentences as playback advances.
+Implemented through `src/lib/audio/audioEngine.ts` and `TourPlayer.tsx`.
 
-    Audio Controls: Variable playback speeds (0.75x, 1x, 1.25x, 1.5x), ±15-second skipping, and voice persona switching (Docent, Historian, Casual Local Companion).
+EchoGuide provides a dual-engine speech synthesis architecture designed to maintain audio accessibility and playback continuity.
 
-🗺️ Visual Route Waypoint Map (TourRouteMap.tsx)
+**Cloud-Based Neural Speech**
+- Integrates Gemini-powered speech generation through the `/api/tts/speak` endpoint.
+- Produces natural-sounding narration using cloud-based speech synthesis.
+- Supports configurable voice personas.
 
-    Generates a step-by-step route map connecting waypoints.
+**Browser-Based Speech Synthesis**
+- Uses the native Web Speech API as a local fallback.
+- Detects and selects available high-quality system voices.
+- Supports compatible enhanced and natural voices across supported browsers and operating systems.
 
-    Landmark preview cards with category badges, descriptive observation tips, and progress tracking.
+**Advanced Playback Capabilities**
+- Real-time sentence and paragraph highlighting synchronized with narration.
+- Adjustable playback speeds: 0.75x, 1x, 1.25x, and 1.5x.
+- Forward and backward navigation with 15-second skipping.
+- Voice persona selection, including Docent, Historian, and Casual Local Companion.
+- Text normalization for improved pronunciation of abbreviations, Roman numerals, and historical century references.
 
-🎨 Tour Studio Creator (TourStudio.tsx)
+### 3.2 Interactive Route and Landmark Visualization
 
-    One-click presets for world-famous destinations (Jaipur City Palace, Kyoto Gion, Rome Colosseum, Barcelona Gothic Quarter, Paris Montmartre, Udaipur).
+Implemented through `TourRouteMap.tsx`.
 
-    Custom destination search bar.
+The platform complements audio storytelling with a geographical exploration interface.
 
-    Interactive duration slider (5 to 45 minutes) with real-time word-budget and chapter estimation.
+- Displays tour waypoints and connected route segments.
+- Provides landmark preview cards and contextual descriptions.
+- Organizes stops by thematic categories.
+- Includes observation suggestions to help visitors identify important visual details.
+- Tracks tour progress across individual waypoints.
 
-    Live Agent Execution Pipeline view displaying real-time agent status indicators (Running, Completed, Step logs).
+### 3.3 AI-Powered Tour Studio
 
-📚 Curated Tour Library & User Storage (TourLibrary.tsx)
+Implemented through `TourStudio.tsx`.
 
-    Pre-loaded sample tours with rich metadata, duration, category pills, and audio scripts.
+The Tour Studio provides an interactive environment for generating customized audio tours.
 
-    Bookmarking / saving tours to the user's personal library.
+- Destination search and custom tour creation.
+- Preconfigured destination presets, including Jaipur City Palace, Kyoto Gion, Rome Colosseum, Barcelona Gothic Quarter, Paris Montmartre, and Udaipur.
+- Configurable tour duration from 5 to 45 minutes.
+- Dynamic word-budget and chapter estimation.
+- Theme-based agent selection.
+- Live agent execution status and processing logs.
+- Visibility into individual agent execution stages.
 
-🔐 Full-Stack Authentication (server.ts & src/lib/auth/authStore.ts)
+### 3.4 Personalized Tour Library
 
-    Lightweight JWT session management with HTTP-only cookies and Bearer token fallback.
+Implemented through `TourLibrary.tsx`.
 
-    Password hashing with bcryptjs.
+- Provides a collection of preconfigured sample tours.
+- Displays tour descriptions, duration, and thematic categories.
+- Supports bookmarking and saving tours to a personal library.
+- Organizes previously generated tour content for convenient access.
 
-    Demo accounts initialized out of the box.
+### 3.5 Secure Authentication and Session Management
 
-4. Technology Stack
-Layer	Technologies
-Frontend UI	React 19, TypeScript, Tailwind CSS v4, Lucide Icons, Motion (Framer Motion)
-Backend & Server	Node.js, Express (server.ts), dynamic Vite middleware integration in development
-AI & LLM SDK	@google/genai (Gemini 2.5 Flash for agent generation, Gemini 3.8 Flash Lite TTS for audio)
-Audio Processing	Web Speech API, AudioContext, WAV encoder, neural voice auto-detection
-Authentication	JWT (jsonwebtoken), bcryptjs, cookie-parser
-Tooling & Build	Vite 8, tsx for TypeScript execution, ES2022
-5. Summary & Evaluation
+Implemented through `server.ts` and `src/lib/auth/authStore.ts`.
 
-Multi-agent-AI-tour stands out as a well-structured implementation of agentic decomposition applied to a consumer travel domain:
+- JWT-based authentication and session management.
+- HTTP-only cookie-based session handling.
+- Bearer token authentication fallback.
+- Password hashing using `bcryptjs`.
+- Preconfigured demonstration accounts.
+- Authenticated access to personalized user functionality.
 
-    Solves the "Monolithic Hallucination" problem: By constraining each agent to a specific word budget and domain instruction set, the resulting tours are concise, factually grounded, and paced to real-world walking times.
+### 3.6 Intelligent Fallback and Reliability
 
-    Zero-Friction Fallback: The codebase includes offline procedural fallbacks and browser-native TTS, ensuring the user interface remains fully functional even without live API credentials.
+EchoGuide incorporates a deterministic procedural content-generation fallback to improve application resilience.
 
-    Production Polish: Includes full audio scrubbing, synchronized reading cursors, responsive mobile-friendly layouts, and comprehensive test files (planner.test.ts, parser.test.ts).
+When Gemini credentials are unavailable or API requests encounter rate limits or service failures, the platform can switch to built-in procedural content generators.
+
+The audio player also supports browser-native speech synthesis as an alternative to cloud-based speech generation.
+
+This architecture helps preserve core application functionality even when external AI services are unavailable.
+
+## 4. Technology Stack
+
+| Component | Technologies |
+|---|---|
+| Frontend | React 19, TypeScript |
+| UI and Styling | Tailwind CSS v4, Lucide Icons |
+| Animations | Motion / Framer Motion |
+| Backend | Node.js, Express.js |
+| Development Server | Vite 8, Dynamic Vite Middleware |
+| AI Integration | Google Gemini, `@google/genai` |
+| AI Orchestration | Custom Multi-Agent Architecture |
+| Speech Synthesis | Gemini TTS, Web Speech API |
+| Audio Processing | AudioContext, WAV Encoding |
+| Authentication | JWT, bcryptjs, cookie-parser |
+| Runtime | TypeScript, tsx, ES2022 |
+| Testing | Vitest-compatible test suites for planner and parser logic |
+
+## 5. Engineering Highlights and Technical Innovation
+
+EchoGuide demonstrates several important software engineering and AI development concepts:
+
+**1. Collaborative Multi-Agent Intelligence**
+
+Decomposes a complex content-generation task into specialized responsibilities instead of depending on a single general-purpose LLM prompt.
+
+**2. Deterministic Narrative Planning**
+
+Combines mathematical word-budget allocation with probabilistic AI content generation to maintain predictable tour structures and estimated narration durations.
+
+**3. Context-Aware Narrative Orchestration**
+
+Connects independently generated thematic chapters into a continuous storytelling experience through contextual transitions and geographical references.
+
+**4. Resilient AI Integration**
+
+Implements procedural content-generation and browser-native speech fallbacks to reduce dependency on external AI services.
+
+**5. Synchronized Audio and Text Experience**
+
+Combines speech synthesis, transcript highlighting, playback controls, and text normalization to improve accessibility and user engagement.
+
+**6. Full-Stack Application Engineering**
+
+Integrates a React and TypeScript frontend with an Express backend, AI services, authentication, and interactive user-facing components.
+
+## 6. Project Summary
+
+EchoGuide demonstrates the practical application of multi-agent Generative AI, deterministic planning, speech synthesis, and full-stack web development within the travel technology domain.
+
+By combining specialized AI agents with a mathematical planning mechanism and a lead orchestration layer, the platform transforms destination information into structured, personalized, and duration-controlled audio experiences.
+
+Its architecture emphasizes modularity, reliability, user personalization, and interactive storytelling, making it a strong demonstration of applied agentic AI engineering and modern full-stack application development.
